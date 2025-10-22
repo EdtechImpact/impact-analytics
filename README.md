@@ -89,7 +89,9 @@ May be sent as an array of events.
 ## Event Reference
 
 `event` is a xAPI verb (see below)
+
 `userId` is your anonymous, unique user identifier used to track users across sessions
+
 
 ### Standard xAPI Verbs
   
