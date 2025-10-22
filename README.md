@@ -71,7 +71,7 @@ Authorization: Bearer your-api-key-here
 		"schoolId": "sch_oak_123",
 		"schoolName": "Oakwood Elementary",
 		"schoolURN": "35672",
-		"yearGroup": "2012",
+		"yearGroup": "KS4",
 		"classId": "C5",
 		"className": "5B"
 	},
@@ -88,9 +88,9 @@ May be sent as an array of events.
 
 ## Event Reference
 
-`event` is a xAPI verb (see below)
+`event` is a xAPI verb (see below). Required.
 
-`userId` is your anonymous, unique user identifier used to track users across sessions
+`userId` is your anonymous, unique user identifier used to track users across sessions. Required.
 
 
 ### Standard xAPI Verbs
