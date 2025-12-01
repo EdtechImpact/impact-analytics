@@ -66,8 +66,8 @@ Authorization: Bearer your-api-key-here
 {
 	"timestamp": "2025-10-10T14:30:00Z",
 	"event": "completed",
-	"userId": "72b8a77dbc95590a34d3e158f20c6797",
-	"traits": {
+	"user": {
+		"id": "72b8a77dbc95590a34d3e158f20c6797",
 		"role": "student",
 		"schoolId": "sch_oak_123",
 		"schoolName": "Oakwood Elementary",
@@ -105,7 +105,7 @@ May be sent as an array of events.
 
 `event` is a xAPI verb (see below). Required.
 
-`userId` is your anonymous, unique user identifier used to track users across sessions. Required.
+`user.id` is your anonymous, unique user identifier used to track users across sessions. Required.
 
 
 ### Standard xAPI Verbs
@@ -195,7 +195,7 @@ Traits describe who the user is (sent separately from properties, optional):
 		{
 			"index": 0,
 			"field": "userId",
-			"message": "userId is required"
+			"message": "user.id is required"
 		}
 	]
 }
