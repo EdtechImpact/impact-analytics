@@ -76,12 +76,20 @@ Authorization: Bearer your-api-key-here
 		"classId": "C5",
 		"className": "5B"
 	},
-	"properties": {
-      "featuresUsed": [
-		"formative_assessment_reading",
-        "formative_assessment_poll"
-      ],
-      "activityId": "c969c307b1fa46d02dadfafa92e5a715"
+	"object": {
+	    "id": "http://example.com/activities/solo-hang-gliding",
+	    "definition": "Solo Hang Gliding",
+		"features": [
+			"formative_assessment_reading",
+	        "formative_assessment_poll"
+		]
+	},
+    "result": {
+		"completion": true,
+		"success": true,
+		"score": {
+		  "scaled": .95
+		}
     }
 }
 
