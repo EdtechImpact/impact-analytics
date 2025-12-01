@@ -64,8 +64,9 @@ Authorization: Bearer your-api-key-here
 ```json
 
 {
+	"timestamp": "2025-10-10T14:30:00Z",
 	"event": "completed",
-	"userId": "12345",
+	"userId": "72b8a77dbc95590a34d3e158f20c6797",
 	"traits": {
 		"role": "student",
 		"schoolId": "sch_oak_123",
@@ -75,7 +76,13 @@ Authorization: Bearer your-api-key-here
 		"classId": "C5",
 		"className": "5B"
 	},
-	"timestamp": "2025-10-10T14:30:00Z"
+	"properties": {
+      "featuresUsed": [
+		"formative_assessment_reading",
+        "formative_assessment_poll"
+      ],
+      "activityId": "c969c307b1fa46d02dadfafa92e5a715"
+    }
 }
 
 ```
