@@ -77,8 +77,8 @@ Authorization: Bearer your-api-key-here
 		"className": "5B"
 	},
 	"object": {
-	    "id": "http://example.com/activities/solo-hang-gliding",
-	    "definition": "Solo Hang Gliding",
+	    "id": "http://example.com/activities/english-test",
+	    "definition": "English test",
 		"features": [
 			"formative_assessment_reading",
 	        "formative_assessment_poll"
