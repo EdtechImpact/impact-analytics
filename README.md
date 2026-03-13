@@ -1,209 +1,310 @@
-# EdTech Impact Analytics API 
+# EdTech Impact Analytics API - DRAFT
 
- 
+**Canonical Event Contract v1.1 --- SDK Integration**
 
+------------------------------------------------------------------------
 
+## Authentication
 
-## Table of Contents
+Include your API token in the Authorization header.
 
+    Authorization: Bearer your-api-token
 
-- [Direct API Integration](#direct-api-integration)
+Tokens are issued during onboarding and scoped to your `product_id`.
 
-- [Event Reference](#event-reference)
+------------------------------------------------------------------------
 
-- [API Reference](#api-reference)
+# Endpoint
 
- 
----
+    POST https://im.pact.workers.dev/v1
+    Content-Type: application/json
+    Authorization: Bearer your-api-token
 
-## Direct API Integration
+This endpoint accepts event ingestion for both real‑time and batch
+events.
 
-  
+------------------------------------------------------------------------
 
+# Request Format
 
-  
+Requests must contain an **array of events**, even if sending a single
+event.
 
-### Authentication
+Maximum **1,000 events per request (5MB payload limit).**
 
-  
+------------------------------------------------------------------------
 
-Include your API key in the `Authorization` header:
+# Minimum Required Payload
 
-  
-
+``` json
+[
+  {
+    "schema_version": "1.1",
+    "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
+    "product_id": "study-app",
+    "school_id": "sch_test_000",
+    "event_name": "session_started",
+    "occurred_at": "2026-03-01T10:00:00Z",
+    "actor_id": "usr_test_001"
+  }
+]
 ```
 
-Authorization: Bearer your-api-key-here
+------------------------------------------------------------------------
 
+# Required Fields
+
+  ------------------------------------------------------------------------
+  Field             Type              Description
+  ----------------- ----------------- ------------------------------------
+  schema_version    string            Contract version of the payload.
+                                      Current version: `"1.1"`.
+
+  event_id          string            Unique event identifier. UUID.
+
+  product_id        string            Your EdTech Impact application
+                                      identifier.
+
+  school_id         string            Your school identifier.
+
+  event_name        string            Event name from the canonical
+                                      taxonomy or your own event names.
+
+  occurred_at       timestamp         ISO‑8601 timestamp when the event
+                                      occurred.
+
+  actor_id          string            Must be a pseudonymous identifier.
+                                      Must not contain or be derived from
+                                      personally identifiable information
+                                      (emails, names, UPNs, phone
+                                      numbers).
+  ------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+# Optional Envelope Fields
+
+  ------------------------------------------------------------------------
+  Field             Type              Description
+  ----------------- ----------------- ------------------------------------
+  eti_school_id     string            EdTech Impact school identifier if
+                                      known.
+
+  event_source      string            Indicates how the event entered the
+                                      ingestion system. Useful for
+                                      debugging and pipeline attribution.
+
+  event_kind        string            interaction, state_change, or
+                                      system.
+
+  sent_at           timestamp         When the event was sent by the
+                                      client system.
+
+  event_sequence    integer           Ordering index within a session when
+                                      timestamps lack precision.
+  ------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+# Actor Domain
+
+Describes the user and educational profile.
+
+  Field             Type      Description
+  ----------------- --------- ----------------------------------------
+  role              string    student, teacher, admin, system
+  session_id        string    Session identifier
+  country           string    ISO‑3166 country code
+  education_level   string    ISCED level
+  grade_index       integer   Years of schooling
+  class_id          string    Class identifier
+  cohort_id         string    Intervention or research cohort
+  institution_id    string    MAT, district, or authority identifier
+  national          object    Country‑specific educational metadata
+
+------------------------------------------------------------------------
+
+# Activity Domain
+
+  ----------------------------------------------------------------------------
+  Field                 Type              Description
+  --------------------- ----------------- ------------------------------------
+  id                    string            Your content identifier. Required
+                                          for most analytics and strongly
+                                          recommended.
+
+  name                  string            Human readable name
+
+  type                  string            lesson, quiz, question, video,
+                                          assessment, chat
+
+  subject               string            Curriculum subject (defined in enum
+                                          registry)
+
+  topic                 string            Free text topic
+
+  difficulty            string            beginner, intermediate, advanced
+
+  ai                    boolean           Indicates AI involvement
+
+  attempt               integer           Attempt number
+
+  parent_id             string            Parent activity identifier
+
+  assigned_by           string            Teacher identifier
+
+  curriculum_standard   string            Curriculum reference
+  ----------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+# Result Domain
+
+  ------------------------------------------------------------------------
+  Field             Type              Description
+  ----------------- ----------------- ------------------------------------
+  success           boolean           Indicates successful completion of a
+                                      non‑assessment action
+
+  correct           boolean           Indicates whether the response was
+                                      correct
+
+  score             number            Decimal score 0.0--1.0
+
+  response          string            Student response
+
+  duration_ms       integer           Time spent
+
+  progress          number            Progress decimal 0.0--1.0
+  ------------------------------------------------------------------------
+
+### Correct vs Success
+
+Use `correct` for assessment events such as `question_answered`.
+
+Use `success` for non‑assessment outcomes such as:
+
+-   activity_completed
+-   lesson_completed
+-   video_completed
+
+Events should not normally include both fields.
+
+------------------------------------------------------------------------
+
+# Client Domain
+
+  Field         Type     Description
+  ------------- -------- ------------------------------
+  platform      string   web, ios, android, desktop
+  device_type   string   mobile, tablet, desktop
+  user_agent    string   Browser or device user agent
+  app_version   string   Application version
+
+------------------------------------------------------------------------
+
+# Context Domain
+
+  -------------------------------------------------------------------------
+  Field              Type              Description
+  ------------------ ----------------- ------------------------------------
+  course_id          string            Course identifier
+
+  assignment_id      string            Assignment identifier
+
+  learning_path_id   string            Learning pathway identifier
+
+  page_url           string            URL where event occurred. Query
+                                       parameters and fragments should be
+                                       removed to prevent accidental
+                                       transmission of personal data.
+
+  page_title         string            Page title
+  -------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+# Attributes
+
+Flexible metadata container.
+
+Rules:
+
+-   Keys must be **snake_case**
+-   Keys must be **\< 64 characters**
+-   Must not duplicate structured fields like subject, score, session_id
+
+Example:
+
+``` json
+"attributes": {
+  "mastery_level": "emerald",
+  "feature": "study_mode"
+}
 ```
 
-  
+------------------------------------------------------------------------
 
-### Endpoint
+# Response Format
 
-  
+### Success
 
-```
-
-POST https://im.pact.workers.dev/
-
-Content-Type: application/json
-
-Authorization: Bearer your-api-key-here
-
-```
-
-  
-
-### Request Format
-
-  
-
-**Single Event:**
-
-```json
-
+``` json
 {
-	"timestamp": "2025-10-10T14:30:00Z",
-	"event": "completed",
-	"userId": "72b8a77dbc95590a34d3e158f20c6797",
-	"userTraits": {
-		"role": "student",
-		"schoolId": "sch_oak_123",
-		"schoolName": "Oakwood Elementary",
-		"schoolURN": "35672",
-		"yearGroup": "KS4",
-		"classId": "C5",
-		"className": "5B"
-	},
-	"object": {
-	    "id": "http://example.com/activities/english-test",
-	    "definition": "English test",
-		"features": [
-			"formative_assessment_reading",
-	        "formative_assessment_poll"
-		]
-	},
-    "result": {
-		"completion": true,
-		"success": true,
-		"score": {
-		  "scaled": .95
-		}
+  "request_id": "req_91df2c",
+  "accepted": 2,
+  "rejected": 0,
+  "errors": []
+}
+```
+
+### Partial Failure
+
+``` json
+{
+  "request_id": "req_91df2c",
+  "accepted": 1,
+  "rejected": 1,
+  "errors": [
+    {
+      "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
+      "field": "school_id",
+      "message": "required field missing"
     }
+  ]
 }
-
 ```
 
-**Multiple Events:**
+### Authentication Error
 
-May be sent as an array of events.
-
-  
-
-## Event Reference
-
-`event` is a xAPI verb (see below). Required.
-
-`userId` is your anonymous, unique user identifier used to track users across sessions. Required.
-
-
-### Standard xAPI Verbs
-  
-See https://registry.tincanapi.com/#home/verbs for reference
-
-Use these standard verbs for consistent data:
-
-  
-
-| Verb | When to Use | Optional Properties
-
-| `answered` | User answered a question | `questionId` |
-
-| `launched` | User started an activity | `activityId` |
-
-| `completed` | User completed an activity | `activityId` |
-
-| `experienced` | User viewed content | `contentId` |
-
-| `loggedin` | User logged in | 
-
-| `loggedout` | User logged out | 
-
-
-  
-
-  
-
-### User Traits
-
-  
-
-Traits describe who the user is (sent separately from properties, optional):
-
-  
-
-| Trait | Type | Description | Example |
-
-| `role` | string | User role | `"student"` or `"teacher"` |
-
-| `schoolName` | string | School name | `"Oakwood Elementary"` |
-
-| `schoolURN` | string | School URN (England & Wales) | `"15463"` |
-
-| `schoolId` | string | Your Unique school identifier | `"123"` |
-
-| `yearGroup` | string | Year group | `"KS4"` |
-
-| `className` | string | Class name | `"5B"` |
-
-| `classId` | string | Class name | `"5B"` |
-
-
----
-
-  
-
-## API Reference  
-
-### Response Format
-
-  
-
-**Success (200):**
-
-```json
-
+``` json
 {
-	"success": true,
-	"statements_created": 1,
-	"request_id": "uuid"
+  "request_id": "req_91df2c",
+  "error": "Invalid or expired API token"
 }
-
 ```
 
-  
+------------------------------------------------------------------------
 
-**Error (400/401/403/500):**
+# Error Handling
 
-```json
+  Status   Action
+  -------- --------------------------------
+  200      Success
+  400      Validation error
+  401      Authentication error
+  429      Rate limited
+  5xx      Retry with exponential backoff
 
-{
-	"error": "Error message",
-	"request_id": "uuid",
-	"validation_errors": [
-		{
-			"index": 0,
-			"field": "userId",
-			"message": "userId is required"
-		}
-	]
-}
+Idempotency: duplicate `event_id` values are automatically deduplicated.
 
-```
+------------------------------------------------------------------------
 
-  
+# Testing
 
+Use the test school during development.
 
-  
+    school_id = sch_test_000
 
+Events sent with this school ID are accepted but excluded from
+analytics.
