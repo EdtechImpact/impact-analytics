@@ -20,7 +20,7 @@ Tokens are issued during onboarding and scoped to your `product_id`.
     Content-Type: application/json
     Authorization: Bearer your-api-token
 
-This endpoint accepts event ingestion for both real‑time and batch
+This endpoint accepts event ingestion for both real-time and batch
 events.
 
 ------------------------------------------------------------------------
@@ -60,7 +60,8 @@ Maximum **1,000 events per request (5MB payload limit).**
   schema_version    string            Contract version of the payload.
                                       Current version: `"1.1"`.
 
-  event_id          string            Unique event identifier. UUID.
+  event_id          string            Unique event identifier. UUID v7
+                                      recommended.
 
   product_id        string            Your EdTech Impact application
                                       identifier.
@@ -70,7 +71,7 @@ Maximum **1,000 events per request (5MB payload limit).**
   event_name        string            Event name from the canonical
                                       taxonomy or your own event names.
 
-  occurred_at       timestamp         ISO‑8601 timestamp when the event
+  occurred_at       timestamp         ISO-8601 timestamp when the event
                                       occurred.
 
   actor_id          string            Must be a pseudonymous identifier.
@@ -88,17 +89,17 @@ Maximum **1,000 events per request (5MB payload limit).**
   Field             Type              Description
   ----------------- ----------------- ------------------------------------
   eti_school_id     string            EdTech Impact school identifier if
-                                      known.
+                                      known. Skips server-side resolution.
 
   event_source      string            Indicates how the event entered the
                                       ingestion system. Useful for
                                       debugging and pipeline attribution.
 
-  event_kind        string            interaction, state_change, or
-                                      system.
+  event_kind        string            interaction, state_change, or system
+                                      classification of the event.
 
-  sent_at           timestamp         When the event was sent by the
-                                      client system.
+  sent_at           timestamp         ISO-8601 timestamp indicating when
+                                      the client system sent the event.
 
   event_sequence    integer           Ordering index within a session when
                                       timestamps lack precision.
@@ -114,13 +115,13 @@ Describes the user and educational profile.
   ----------------- --------- ----------------------------------------
   role              string    student, teacher, admin, system
   session_id        string    Session identifier
-  country           string    ISO‑3166 country code
+  country           string    ISO-3166 country code
   education_level   string    ISCED level
   grade_index       integer   Years of schooling
   class_id          string    Class identifier
   cohort_id         string    Intervention or research cohort
   institution_id    string    MAT, district, or authority identifier
-  national          object    Country‑specific educational metadata
+  national          object    Country-specific educational metadata
 
 ------------------------------------------------------------------------
 
@@ -164,7 +165,7 @@ Describes the user and educational profile.
   Field             Type              Description
   ----------------- ----------------- ------------------------------------
   success           boolean           Indicates successful completion of a
-                                      non‑assessment action
+                                      non-assessment action
 
   correct           boolean           Indicates whether the response was
                                       correct
@@ -182,7 +183,7 @@ Describes the user and educational profile.
 
 Use `correct` for assessment events such as `question_answered`.
 
-Use `success` for non‑assessment outcomes such as:
+Use `success` for non-assessment outcomes such as:
 
 -   activity_completed
 -   lesson_completed
@@ -244,6 +245,7 @@ Example:
 ```
 
 ------------------------------------------------------------------------
+
 
 # Response Format
 
