@@ -52,6 +52,90 @@ Maximum **1,000 events per request (5MB payload limit).**
 
 ------------------------------------------------------------------------
 
+# Full Payload Example
+
+Example event containing **all domains and fields** supported by the
+contract.
+
+``` json
+[
+  {
+    "schema_version": "1.1",
+    "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
+    "product_id": "study-app",
+    "school_id": "sch_alkhor_001",
+    "eti_school_id": "eti_34821",
+    "event_name": "question_answered",
+    "event_source": "sdk",
+    "event_kind": "interaction",
+    "occurred_at": "2026-03-01T10:22:00Z",
+    "sent_at": "2026-03-01T10:22:01Z",
+    "event_sequence": 3,
+    "actor_id": "usr_anon_abc123",
+
+    "actor": {
+      "role": "student",
+      "session_id": "sess_019d1a2b0001",
+      "country": "GB",
+      "education_level": "lower-secondary",
+      "grade_index": 7,
+      "class_id": "7B",
+      "cohort_id": "pupil_premium",
+      "institution_id": "mat_102",
+      "national": {
+        "yearGroup": "year-7",
+        "keyStage": "ks3"
+      }
+    },
+
+    "activity": {
+      "id": "q42",
+      "name": "What is 1/2 + 1/4?",
+      "type": "question",
+      "subject": "mathematics",
+      "topic": "fractions",
+      "difficulty": "intermediate",
+      "ai": false,
+      "attempt": 1,
+      "parent_id": "quiz-123",
+      "assigned_by": "tch_992",
+      "curriculum_standard": "NC-KS3-MA-3.1"
+    },
+
+    "result": {
+      "correct": true,
+      "score": 1.0,
+      "response": "3/4",
+      "duration_ms": 12400,
+      "progress": 0.65
+    },
+
+    "client": {
+      "platform": "web",
+      "device_type": "tablet",
+      "user_agent": "Chrome/122.0",
+      "app_version": "3.2.0"
+    },
+
+    "context": {
+      "course_id": "course-maths-y7",
+      "assignment_id": "hw-fractions-2026-03",
+      "learning_path_id": "path-fractions",
+      "page_url": "https://app.example.com/lesson/fractions",
+      "page_title": "Adding Fractions"
+    },
+
+    "attributes": {
+      "feature": "study_mode",
+      "mastery_level": "emerald",
+      "mastery_points": 7.5
+    }
+  }
+]
+```
+
+------------------------------------------------------------------------
+
 # Required Fields
 
   ------------------------------------------------------------------------
