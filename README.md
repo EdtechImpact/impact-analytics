@@ -1,4 +1,4 @@
-# EdTech Impact Analytics API - DRAFT
+# EdTech Impact Analytics API
 
 **Canonical Event Contract v1.1 --- SDK Integration**
 
@@ -40,12 +40,45 @@ Maximum **1,000 events per request (5MB payload limit).**
 [
   {
     "schema_version": "1.1",
-    "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
     "product_id": "study-app",
     "school_id": "sch_test_000",
     "event_name": "session_started",
     "occurred_at": "2026-03-01T10:00:00Z",
     "actor_id": "usr_test_001"
+  }
+]
+```
+
+# Minimum Payload with Raw Event
+
+Include your original event in the `raw` field alongside the required
+envelope fields. Your entire original event is preserved untouched ---
+EdTech Impact standardises and analyses your data without modifying it.
+
+``` json
+[
+  {
+    "schema_version": "1.1",
+    "product_id": "study-app",
+    "school_id": "sch_alkhor_001",
+    "event_name": "entered_study_mode",
+    "occurred_at": "2026-02-20T08:31:00Z",
+    "actor_id": "usr_anon_abc123",
+    "raw": {
+      ...your original event eg:
+      "event_name": "entered_study_mode",
+      "occurred_at": "2026-02-20T08:31:00.000000+00:00",
+      "payload": {
+        "session_id": "019d1a2b-0001-7abc-def0-111111111111",
+        "category": "study",
+        "properties": {
+          "feature": "study_mode",
+          "lesson_uid": "019c094a-0cf4-7f31-ac1c-cfddc2a06a54",
+          "subject": "MATHEMATICS",
+          "grade": 9
+        }
+      }
+    }
   }
 ]
 ```
@@ -61,7 +94,6 @@ contract.
 [
   {
     "schema_version": "1.1",
-    "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
     "product_id": "study-app",
     "school_id": "sch_alkhor_001",
     "eti_school_id": "eti_34821",
@@ -129,6 +161,17 @@ contract.
       "feature": "study_mode",
       "mastery_level": "emerald",
       "mastery_points": 7.5
+    },
+
+    "raw": {
+      ...your orginal event eg:
+      "event_name": "question_answered",
+      "occurred_at": "2026-03-01T10:22:00.000000+00:00",
+      "payload": {
+        "question_id": "q42",
+        "response": "3/4",
+        "correct": true
+      }
     }
   }
 ]
@@ -143,9 +186,6 @@ contract.
   ----------------- ----------------- ------------------------------------
   schema_version    string            Contract version of the payload.
                                       Current version: `"1.1"`.
-
-  event_id          string            Unique event identifier. UUID v7
-                                      recommended.
 
   product_id        string            Your EdTech Impact application
                                       identifier.
@@ -187,6 +227,14 @@ contract.
 
   event_sequence    integer           Ordering index within a session when
                                       timestamps lack precision.
+
+  product_version   string            Version of your application at the
+                                      time the event was sent.
+
+  raw               object            Your original event payload,
+                                      preserved untouched. EdTech Impact
+                                      maps and enriches from this data
+                                      server-side. No fidelity is lost.
   ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
@@ -381,8 +429,6 @@ Example:
   401      Authentication error
   429      Rate limited
   5xx      Retry with exponential backoff
-
-Idempotency: duplicate `event_id` values are automatically deduplicated.
 
 ------------------------------------------------------------------------
 
