@@ -1,6 +1,6 @@
 # EdTech Impact Analytics API
 
-**Canonical Event Contract v1.1n**
+**Canonical Event Contract v1.1**
 
 ------------------------------------------------------------------------
 
