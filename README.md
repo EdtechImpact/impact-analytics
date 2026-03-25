@@ -164,7 +164,7 @@ contract.
     },
 
     "raw": {
-      ...your orginal event eg:
+      ...your original event eg:
       "event_name": "question_answered",
       "occurred_at": "2026-03-01T10:22:00.000000+00:00",
       "payload": {
