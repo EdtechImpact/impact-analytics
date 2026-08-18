@@ -19,9 +19,9 @@ envelope, keep your original payload intact, and enrich over time.
 - [Required fields](#required-fields)
 - [Timestamps](#timestamps)
 - [Optional envelope fields](#optional-envelope-fields)
-- [The learner concerned](#the-learner-concerned)
+- [About `raw`](#about-raw)
 - [Corrections and retractions](#corrections-and-retractions)
-- [Domains](#domains) — [actor](#actor), [activity](#activity), [result](#result), [client](#client), [context](#context), [attributes](#attributes)
+- [Domains](#domains) — [actor](#actor), [learner](#learner), [activity](#activity), [result](#result), [client](#client), [context](#context), [attributes](#attributes)
 - [Responses](#responses)
 - [Errors and retries](#errors-and-retries)
 - [Rate limits](#rate-limits)
@@ -79,20 +79,26 @@ without storing anything at all.
 
 1. Send the minimum payload above against `sch_test_000` and confirm a 200.
 2. Add your real `school_id` values and send us the list so we can map them to ours.
-3. Add the `raw` field so your original payload is preserved.
-4. Add `activity` — this is what unlocks content-level analysis.
-5. Add `result` — this is what turns usage reporting into impact evidence.
-6. Add `context` for course and assignment-level insight, and `learner` for
+3. Add `activity` — this is what unlocks content-level analysis.
+4. Add `result` — this is what turns usage reporting into impact evidence.
+5. Add `context` for course and assignment-level insight, and `learner` for
    events performed on a learner's behalf or concerning a whole class.
+
+Note what isn't on that list: `raw`. It's optional, and we'd rather you didn't send
+it — see [About `raw`](#about-raw).
 
 ---
 
 ## How it works
 
-Your entire original event goes into `raw`, untouched. Around it, a small
-envelope tells us who did what, when, and to which learner. We map your event
-names to our taxonomy, resolve your school identifiers to ours, and generate
+A small envelope tells us who did what, when, and to which learner. We map your
+event names to our taxonomy, resolve your school identifiers to ours, and generate
 analytics that are comparable across products.
+
+**Everything we analyse comes from the envelope.** You can optionally include your
+original event in `raw` as a convenience while you get started — see
+[About `raw`](#about-raw) — but it isn't required, and a complete envelope is
+always better than a `raw` payload we have to interpret.
 
 We analyse across four dimensions. The more complete each one is, the more we can
 tell you:
@@ -162,7 +168,12 @@ even for a single event.
 | `occurred_at` | timestamp | When the event happened. See [Timestamps](#timestamps). |
 | `actor_id` | string | Pseudonymous identifier of whoever performed the action. Never an email, name, UPN or phone number. |
 
-### Minimum payload with your original event
+### Optional: wrapping your original event
+
+`raw` is **not required**, and we'd generally rather you didn't use it. It exists so
+you can start sending data without mapping every field first — wrap what you
+already emit, get a working integration, then move the fields that matter into the
+envelope and drop `raw`. See [About `raw`](#about-raw).
 
 ```json
 [
@@ -248,8 +259,6 @@ offset**.
 | `sent_at` | timestamp | When your system sent the event. |
 | `event_sequence` | integer | Ordering index within a session, where timestamps lack precision. |
 | `product_version` | string | Your application version at the time of the event. |
-| `raw` | object | Your original payload, preserved untouched. |
-| `learner` | object | The learner or group the event concerns. See below. |
 | `revision` | integer | Corrections. See below. |
 | `voided` | boolean | Retractions. See below. |
 
@@ -258,9 +267,96 @@ support for them. You can send extra fields safely — but a field we don't
 recognise won't appear in your reports, so tell us if there's something you'd like
 us to use.
 
+## About `raw`
+
+`raw` is optional and exists for your convenience, not ours. **A complete envelope
+with no `raw` is the best integration you can send us.**
+
+**What it's for.** Getting started quickly. Rather than mapping every field before
+you can send anything, wrap your existing event, confirm the integration works, and
+enrich the envelope over time.
+
+**Why we'd rather you dropped it once you're established**
+
+- **We analyse the envelope, not `raw`.** Where a field is missing we may attempt to
+  infer it from `raw`, but an inferred value is always less reliable than one you
+  sent deliberately. A field that matters to your analytics should be an envelope
+  field.
+- **It's the riskiest part of the payload.** We store it exactly as sent. If your
+  event contains a learner's name, an email address, or free text, it arrives with
+  it — and that is personal data neither of us needs in an analytics system.
+- **It's retained for 90 days only**, then removed while the envelope is kept. So
+  it's not a durable archive, and anything you rely on shouldn't live only there.
+- **It's the bulk of the payload.** Dropping it makes your requests substantially
+  smaller and gets more events under the 1,000-per-request and 5 MB limits.
+
+**If you'd rather we didn't store it at all**, tell us and we can omit `raw` capture
+for your integration entirely. Nothing in our analytics depends on it.
+
 ---
 
-## The learner concerned
+## Corrections and retractions
+
+> **Availability:** contact us before sending `revision` above 0 or `voided`.
+> These are enabled per integration and are rejected with an explanatory error
+> until then.
+
+| Field | Type | Description |
+|---|---|---|
+| `revision` | integer | Correction sequence for this `event_id`. Omitted means 0. |
+| `voided` | boolean | Retracts the event. Requires `revision` of 1 or more. |
+
+**To correct an event**, re-send it with the **same `event_id`** and a **higher
+`revision`**. The highest revision wins; lower ones are superseded everywhere.
+Every revision is retained, so the history stays auditable.
+
+```json
+{
+  "schema_version": "1.2",
+  "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
+  "product_id": "your-product-id",
+  "school_id": "sch_alkhor_001",
+  "event_name": "question_answered",
+  "occurred_at": "2026-03-01T10:22:00Z",
+  "actor_id": "usr_anon_abc123",
+  "revision": 1,
+  "result": { "correct": false, "score": 0.0 }
+}
+```
+
+**Delivery retries keep the same `revision`.** That's what keeps retries and
+corrections unambiguous: a retry is identical, a correction increments.
+
+**To retract an event** sent in error, send a new revision with `"voided": true`.
+It's removed from all analytics. Use this for "this shouldn't have been recorded" —
+data subject erasure is a separate process, so contact us for that.
+
+---
+
+## Domains
+
+Every domain is optional. Send what you have.
+
+### actor
+
+Who performed the action, and how.
+
+| Field | Type | Description |
+|---|---|---|
+| `role` | string | `student`, `teacher`, `admin`, `system` |
+| `session_id` | string | Your session identifier. If omitted, we infer sessions from timestamps. |
+| `country` | string | ISO 3166-1 **alpha-2**: `GB`, `US`, `QA`. Three-letter codes are rejected. |
+| `education_level` | string | See [enum reference](#enum-reference) |
+| `grade_index` | integer | 0–20 |
+| `class_id` | string | The class the actor was working in, where applicable |
+| `cohort_id` | string | Intervention or research group |
+| `institution_id` | string | MAT, district or local authority above school level |
+| `national` | object | Country-specific metadata |
+
+Where a `learner` object is also present, its equivalent fields take precedence
+for learner-level analysis.
+
+### learner
 
 `learner` identifies which learner — or which group — an event concerns, for the
 cases where that isn't simply the actor. **Most events don't need it:** when a
@@ -356,68 +452,6 @@ event didn't observe, and it complicates corrections and erasure.
 - **Educational context** (`class_id`, `cohort_id`, `grade_index`,
   `education_level`) resolves from `learner` first, falling back to `actor`.
 
----
-
-## Corrections and retractions
-
-> **Availability:** contact us before sending `revision` above 0 or `voided`.
-> These are enabled per integration and are rejected with an explanatory error
-> until then.
-
-| Field | Type | Description |
-|---|---|---|
-| `revision` | integer | Correction sequence for this `event_id`. Omitted means 0. |
-| `voided` | boolean | Retracts the event. Requires `revision` of 1 or more. |
-
-**To correct an event**, re-send it with the **same `event_id`** and a **higher
-`revision`**. The highest revision wins; lower ones are superseded everywhere.
-Every revision is retained, so the history stays auditable.
-
-```json
-{
-  "schema_version": "1.2",
-  "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
-  "product_id": "your-product-id",
-  "school_id": "sch_alkhor_001",
-  "event_name": "question_answered",
-  "occurred_at": "2026-03-01T10:22:00Z",
-  "actor_id": "usr_anon_abc123",
-  "revision": 1,
-  "result": { "correct": false, "score": 0.0 }
-}
-```
-
-**Delivery retries keep the same `revision`.** That's what keeps retries and
-corrections unambiguous: a retry is identical, a correction increments.
-
-**To retract an event** sent in error, send a new revision with `"voided": true`.
-It's removed from all analytics. Use this for "this shouldn't have been recorded" —
-data subject erasure is a separate process, so contact us for that.
-
----
-
-## Domains
-
-Every domain is optional. Send what you have.
-
-### actor
-
-Who performed the action, and how.
-
-| Field | Type | Description |
-|---|---|---|
-| `role` | string | `student`, `teacher`, `admin`, `system` |
-| `session_id` | string | Your session identifier. If omitted, we infer sessions from timestamps. |
-| `country` | string | ISO 3166-1 **alpha-2**: `GB`, `US`, `QA`. Three-letter codes are rejected. |
-| `education_level` | string | See [enum reference](#enum-reference) |
-| `grade_index` | integer | 0–20 |
-| `class_id` | string | The class the actor was working in, where applicable |
-| `cohort_id` | string | Intervention or research group |
-| `institution_id` | string | MAT, district or local authority above school level |
-| `national` | object | Country-specific metadata |
-
-Where a `learner` object is also present, its equivalent fields take precedence
-for learner-level analysis.
 
 ### activity
 
@@ -736,8 +770,11 @@ they routinely carry names, tokens and email addresses.
 send it where your agreement with us covers it, and redact before sending if there
 is any chance of personal data appearing.
 
-**`raw` is stored verbatim.** Whatever you put in it, we keep. Make sure it
-contains no personal data you wouldn't send in the envelope.
+**`raw` is stored verbatim, and is optional.** Whatever you put in it, we keep for
+90 days. It carries whatever your product happened to emit, which makes it the most
+likely place for personal data to arrive unintentionally. The safest handling is not
+to send it — see [About `raw`](#about-raw) — and we can disable capture for your
+integration on request.
 
 **Retractions are not erasure.** `voided` removes an event from analytics.
 Data-subject erasure requests are handled out of band — see below.
@@ -752,13 +789,13 @@ Data-subject erasure requests are handled out of band — see below.
 
 Two consequences worth designing for:
 
-- **`raw` is not permanent.** It is retained long enough for us to reprocess and
-  enrich, then removed. If a field in `raw` matters to your analytics, promote it
-  into the envelope rather than relying on us extracting it later.
+- **`raw` is optional and not permanent.** It is retained long enough for us to
+  reprocess and enrich, then removed. If a field in `raw` matters to your analytics,
+  promote it into the envelope rather than relying on us extracting it later — and
+  once you have, drop `raw`.
 - **Send only what you need to.** We keep whatever you put in `raw` for those 90
-  days. If your payloads contain personal data that the envelope rules would
-  prohibit, either redact before sending or tell us and we can omit `raw` capture
-  for your integration entirely.
+  days. If your payloads may contain personal data, either redact before sending or
+  tell us and we can omit `raw` capture for your integration entirely.
 
 ### Requesting erasure
 
@@ -793,9 +830,6 @@ match your token. Check you're not sending staging data with a production token.
 
 **`schema_version` "must be 1.2 when using learner, revision, voided"** — bump
 `schema_version` to `"1.2"` to use those fields.
-
-**`learner_id` "is not a field — did you mean learner.id?"** — the learner
-identifier belongs inside the `learner` object.
 
 **`learner` "must include at least one of id, class_id or cohort_id"** — a
 `learner` object has to identify a person or a group.
@@ -861,24 +895,6 @@ Additive — `1.1` payloads remain valid and are processed unchanged.
   integration).
 - `results[]` and `status` in responses, so accepted and rejected events are
   identified individually.
-- `index` on each error, so a rejection maps back to your submitted array even
-  when `event_id` was missing.
-- `Retry-After` on `429` and `503`.
-- `?results=` and `?dry_run=` query parameters.
-
-**Clarified in documentation** (behaviour unchanged)
-
-- `event_id` is required. It was missing from the v1.1 required-fields table.
-- `event_source` is free text, not a fixed enum.
-
-**Now validated** (previously accepted loosely)
-
-- `occurred_at` and `sent_at` must include a UTC offset.
-- `actor.country` must be a two-letter alpha-2 code.
-- `eti_school_id` accepts a string or an integer.
-
-**Note on `1.0`:** still accepted by the API, but not currently included in
-analytics. If you're sending `1.0`, talk to us.
 
 **Retention published.** Structured events 13 months, `raw` payloads 90 days,
 erasure on request within 30 days. See [Retention and erasure](#retention-and-erasure).
