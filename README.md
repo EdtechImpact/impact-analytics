@@ -43,7 +43,7 @@ your API token, and a stable unique id for each event.
 
 ```bash
 curl -X POST https://im.pact.workers.dev/v1 \
-  -H "Authorization: Bearer $EDTECH_IMPACT_TOKEN" \
+  -H "Authorization: Bearer $API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '[
     {
@@ -366,13 +366,13 @@ than one person.
 
 | Field | Type | Description |
 |---|---|---|
-| `learner.id` | string | Pseudonymous learner identifier. Omit for group-level events. May equal `actor_id`, though a `learner` object isn't needed when the learner acted themselves. |
-| `learner.role` | string | `student`, `teacher`, `admin`, `system` |
-| `learner.class_id` | string | Class or group: `7B`, `maths-set-1` |
-| `learner.cohort_id` | string | Intervention or research group: `pupil_premium` |
-| `learner.grade_index` | integer | Years of formal schooling, 0–20. 0 = Reception, 7 = Year 7. |
-| `learner.education_level` | string | `early-childhood`, `primary`, `lower-secondary`, `upper-secondary` |
-| `learner.national` | object | Country-specific metadata. UK: `{ "yearGroup": "year-7", "keyStage": "ks3" }` |
+| `id` | string | Pseudonymous learner identifier. Omit for group-level events. May equal `actor_id`, though a `learner` object isn't needed when the learner acted themselves. |
+| `role` | string | `student`, `teacher`, `admin`, `system` |
+| `class_id` | string | Class or group: `7B`, `maths-set-1` |
+| `cohort_id` | string | Intervention or research group: `pupil_premium` |
+| `grade_index` | integer | Years of formal schooling, 0–20. 0 = Reception, 7 = Year 7. |
+| `education_level` | string | `early-childhood`, `primary`, `lower-secondary`, `upper-secondary` |
+| `national` | object | Country-specific metadata. UK: `{ "yearGroup": "year-7", "keyStage": "ks3" }` |
 
 Educational context belongs here rather than on the actor because it describes the
 learner. A teacher's `grade_index` is meaningless, and their `class_id` is
