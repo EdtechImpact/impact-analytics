@@ -1,6 +1,6 @@
 # EdTech Impact Analytics — Event Contract
 
-**Version 1.2**
+**Version 1.5**
 
 Send us your product's event data and we turn it into comparable usage, adoption
 and impact analytics for the schools you work with.
@@ -21,7 +21,7 @@ envelope, keep your original payload intact, and enrich over time.
 - [Optional envelope fields](#optional-envelope-fields)
 - [About `raw`](#about-raw)
 - [Corrections and retractions](#corrections-and-retractions)
-- [Domains](#domains) — [actor](#actor), [learner](#learner), [activity](#activity), [result](#result), [client](#client), [context](#context), [attributes](#attributes)
+- [Domains](#domains) — [actor](#actor), [learner](#learner), [activity](#activity), [result](#result), [client](#client), [context](#context), [attributes](#attributes), [qualifiers](#qualifiers)
 - [Responses](#responses)
 - [Errors and retries](#errors-and-retries)
 - [Rate limits](#rate-limits)
@@ -42,12 +42,12 @@ Three things to get going: your `product_id` (we issue it during onboarding),
 your API token, and a stable unique id for each event.
 
 ```bash
-curl -X POST https://im.pact.workers.dev/v1 \
+curl -X POST {{INGEST_URL}}/v1 \
   -H "Authorization: Bearer $API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '[
     {
-      "schema_version": "1.2",
+      "schema_version": "1.5",
       "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
       "product_id": "your-product-id",
       "school_id": "sch_test_000",
@@ -118,10 +118,12 @@ directly is always more accurate than one inferred.
 ## Authentication
 
 ```
-Authorization: Bearer your-api-token
+Authorization: Bearer eia_<prefix>.<secret>
 ```
 
-Tokens are issued during onboarding and are scoped two ways:
+Tokens are issued during onboarding. Keep the whole value secret; quote only the
+`eia_<prefix>` part if you need to identify a token to us. Tokens are scoped two
+ways:
 
 - **To a single `product_id`.** An event whose `product_id` doesn't match your
   token's scope is rejected.
@@ -131,21 +133,34 @@ Tokens are issued during onboarding and are scoped two ways:
   token issued for that use. Requests from an origin the token doesn't permit are
   rejected with `401`.
 
-If your integration sends from both a browser and a backend, ask us for separate
-tokens rather than widening one — it keeps a compromised browser token from being
-usable server-side.
+There are two kinds of token for new integrations:
+
+| Token | Use from | Origin rules |
+|---|---|---|
+| **Server** | Your backend | None. Refused if the request comes from a web browser. |
+| **Publishable** | A browser SDK | Bound to the origins you list. Write-only. |
+
+Tokens issued before these two kinds existed keep working under the origin rules
+they were issued with.
+
+If your integration sends from both a browser and a backend, use one of each rather
+than widening one token — it keeps a compromised browser token from being usable
+server-side.
 
 ---
 
 ## Endpoint
 
 ```
-POST https://im.pact.workers.dev/v1
+POST {{INGEST_URL}}/v1
 Content-Type: application/json
 ```
 
 Handles both real-time and batch delivery. Requests must contain an **array**,
 even for a single event.
+
+Every response carries an **`X-Request-Id`** header, with the same value as
+`request_id` in the body. Quote it when raising a query with us.
 
 ### Query parameters
 
@@ -160,7 +175,7 @@ even for a single event.
 
 | Field | Type | Description |
 |---|---|---|
-| `schema_version` | string | `"1.2"` for new integrations. `"1.1"` remains supported. |
+| `schema_version` | string | `"1.5"` for new integrations. `"1.0"`, `"1.1"`, `"1.2"` and `"1.4"` remain supported. There is no `"1.3"`. |
 | `event_id` | string | Stable unique identifier for the event. UUIDv7 recommended. **The same value on every retry** of the same event, and never reused for a different event. See [Idempotency](#idempotency). |
 | `product_id` | string | Your EdTech Impact application identifier. Must match your token's scope. |
 | `school_id` | string | Your own school identifier. We maintain the mapping to ours. |
@@ -178,7 +193,7 @@ envelope and drop `raw`. See [About `raw`](#about-raw).
 ```json
 [
   {
-    "schema_version": "1.2",
+    "schema_version": "1.5",
     "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
     "product_id": "your-product-id",
     "school_id": "sch_alkhor_001",
@@ -298,8 +313,8 @@ for your integration entirely. Nothing in our analytics depends on it.
 ## Corrections and retractions
 
 > **Availability:** contact us before sending `revision` above 0 or `voided`.
-> These are enabled per integration and are rejected with an explanatory error
-> until then.
+> These are enabled per integration and are rejected with the error code
+> `corrections_disabled` until then.
 
 | Field | Type | Description |
 |---|---|---|
@@ -312,7 +327,7 @@ Every revision is retained, so the history stays auditable.
 
 ```json
 {
-  "schema_version": "1.2",
+  "schema_version": "1.5",
   "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
   "product_id": "your-product-id",
   "school_id": "sch_alkhor_001",
@@ -495,8 +510,14 @@ products that send result data get stronger evidence and more robust benchmarkin
 |---|---|---|
 | `platform` | string | `web`, `ios`, `android`, `desktop` |
 | `device_type` | string | `mobile`, `tablet`, `desktop` |
+| `os` | string | `chromeos`, `windows`, `macos`, `ipados`, `ios`, `android`, `linux`, `other`. From 1.4. |
 | `user_agent` | string | Browser or device user agent |
 | `app_version` | string | Application version |
+
+`client.os` is forgiving: case and common spellings are folded (`Windows`,
+`Mac OS`, `iPad`), and any other value is stored as `other` rather than rejecting
+the event. On an event with `schema_version` below `"1.4"` the field is dropped
+and the event kept.
 
 ### context
 
@@ -526,15 +547,56 @@ Catch-all for product-specific fields, stored as sent.
 }
 ```
 
+### qualifiers
+
+*From 1.5.* **Most integrations don't need this.** If you send your own event
+names, we map them, and the mapping supplies these details for you.
+
+`qualifiers` is for products that send our **standard event names** (we share the
+list during onboarding), such as `message_sent` or `help_provided`. A standard name
+is deliberately general, and a qualifier says which kind of event it is — for
+example, whether a message was typed or picked from a suggestion, or whether help
+was asked for.
+
+| Qualifier | Values | Says |
+|---|---|---|
+| `actor` | `pupil`, `teacher`, `parent`, `staff`, `product`, `ai` | Who or what acted |
+| `initiative` | `requested`, `offered`, `assigned`, `scheduled` | Why it happened |
+| `result` | `correct`, `incorrect`, `partial`, `passed`, `failed` | The outcome |
+| `timing` | `immediate`, `delayed` | How soon feedback followed the work |
+| `origin` | `typed`, `suggested`, `pasted`, `spoken` | Where the content came from |
+| `position` | `first`, `follow-up` | First in a sequence, or following on |
+| `medium` | `text`, `audio`, `video`, `image`, `code` | The form of the content |
+| `audience` | `ai`, `peer`, `teacher`, `class`, `parent`, `public` | Who it was for |
+| `assistance` | `none`, `hint`, `ai` | What help the learner had |
+
+```json
+{
+  "schema_version": "1.5",
+  "event_name": "message_sent",
+  "qualifiers": { "audience": "ai", "origin": "suggested", "position": "follow-up" }
+}
+```
+
+- Every qualifier is optional, and values outside the lists are rejected. Unknown
+  qualifier names are rejected too.
+- Where a contract field already says the same thing — `actor.role`,
+  `result.correct`, `result.success`, `activity.ai` — **the field wins**. Send the
+  field; don't repeat it as a qualifier.
+- `qualifiers` needs `schema_version` `"1.5"` or later. On an older version the
+  event is rejected rather than the field dropped, because a qualifier changes what
+  the event means.
+
 ### Full payload example
 
-Every field the contract supports, for reference. You are not expected to send
-all of these.
+Every field the contract supports, for reference, except
+[`qualifiers`](#qualifiers), which only applies to our standard event names. You
+are not expected to send all of these.
 
 ```json
 [
   {
-    "schema_version": "1.2",
+    "schema_version": "1.5",
     "event_id": "018f9b34-3b6f-7a60-9a3e-9d6a2b2a4e6c",
     "product_id": "your-product-id",
     "school_id": "sch_alkhor_001",
@@ -596,6 +658,7 @@ all of these.
     "client": {
       "platform": "web",
       "device_type": "tablet",
+      "os": "ipados",
       "user_agent": "Chrome/122.0",
       "app_version": "3.2.0"
     },
@@ -648,12 +711,12 @@ all of these.
   "accepted": 1,
   "rejected": 1,
   "errors": [
-    { "index": 1, "event_id": "018f…4e6c", "field": "school_id", "message": "is required (string)" }
+    { "index": 1, "event_id": "018f…4e6c", "field": "school_id", "message": "is required (string)", "code": "required" }
   ],
   "results": [
     { "index": 0, "event_id": "018f…aa01", "status": "accepted" },
     { "index": 1, "event_id": "018f…4e6c", "status": "rejected",
-      "errors": [ { "field": "school_id", "message": "is required (string)" } ] }
+      "errors": [ { "field": "school_id", "message": "is required (string)", "code": "required" } ] }
   ]
 }
 ```
@@ -663,7 +726,7 @@ all of these.
 | `request_id` | Quote this when raising a query with us |
 | `status` | `accepted` (all), `partial` (some rejected), `rejected` (none accepted) |
 | `accepted` / `rejected` | Event counts |
-| `errors[]` | Per **field** errors. `index` is the position in your submitted array. |
+| `errors[]` | Per **field** errors: `field`, `message` and `code`. `index` is the position in your submitted array. |
 | `results[]` | Per **event** outcome, in submission order |
 
 Two things worth building against:
@@ -676,6 +739,9 @@ Two things worth building against:
 > malformed event can produce several entries. Use `index` to map each error back
 > to the event you sent — it's present even when `event_id` was missing.
 
+> **Branch on `code`, not `message`.** Codes are stable; the wording of messages
+> may change. See [Error codes](#error-codes).
+
 For large batches, `?results=errors` returns only the failures and
 `?results=none` omits the array entirely.
 
@@ -687,31 +753,61 @@ For large batches, `?results=errors` returns only the failures and
 |---|---|---|
 | `200` | Accepted, fully or partially | Check `status`, `accepted`, `rejected` |
 | `400` | Validation failure; no event accepted | Fix and resend. Don't retry unchanged. |
-| `401` | Authentication failure | Check your token. Don't retry unchanged. |
+| `401` | Authentication failure: `Invalid API key`, `Key revoked` or `Origin not allowed` | Check your token. Don't retry unchanged. |
 | `403` | Token lacks the required scope | Contact us |
 | `413` | Over 1,000 events or over 5 MB | Split the batch and resend |
 | `429` | Rate limited | Wait for `Retry-After`, then retry |
-| `5xx` | Server-side failure | Retry with exponential backoff |
+| `503` | Temporary failure | Wait for `Retry-After`, then resend the **whole request** with the same `event_id`s; anything already stored is deduplicated |
+| other `5xx` | Server-side failure | Retry with exponential backoff |
 
 Recommended retry policy: exponential backoff with jitter, starting around one
 second, up to five attempts. **Retrying is safe** — see
 [Idempotency](#idempotency).
 
-`429` and `503` responses include a **`Retry-After`** header in seconds, and the
-same value as `retry_after` in the body. Please honour it rather than using a
-fixed interval.
+`429` and `503` responses include a **`Retry-After`** header in seconds; a `429`
+also gives the value as `retry_after_seconds` in the body. Please honour it rather
+than using a fixed interval.
+
+Every error body, including `401` and `403`, carries `request_id`.
+
+### Error codes
+
+Each field error has a `code`. The ones you are most likely to see:
+
+| Code | Meaning |
+|---|---|
+| `required` | A required field is missing |
+| `invalid_type` | Wrong type, e.g. a number where a string is expected |
+| `invalid_value` | Not one of the allowed values |
+| `timestamp_format` | Not ISO-8601 with a UTC offset |
+| `timestamp_calendar` | Not a real date or time |
+| `timestamp_future` | More than 48 hours ahead |
+| `timestamp_too_old` | Before 2000-01-01 |
+| `version_gate` | The field needs a later `schema_version` |
+| `unknown_field` | Not a field: a top-level `learner_id` (use `learner.id`), or an unknown qualifier name |
+| `learner_empty` | `learner` has none of `id`, `class_id`, `cohort_id` |
+| `actor_role_required` | `learner.id` differs from `actor_id` and `actor.role` is missing |
+| `void_requires_revision` | `voided` is true but `revision` is below 1 |
+| `corrections_disabled` | `revision` above 0 or `voided`, not yet enabled for you |
+| `product_scope` | `product_id` doesn't match your token |
+| `duplicate_in_request` | The same `event_id` appears earlier in this request |
+| `event_too_large` | The event is over 200 KiB |
+
+Range and length checks (`score` above 1, an `attributes` key over 64
+characters) use general validation codes such as `too_big`, `too_small` and
+`invalid_key`.
 
 ---
 
 ## Rate limits
 
-1,000 requests per minute per product. Exceeding it returns `429` with
-`Retry-After`.
+6,000 requests per minute per token, counted in fixed one-minute windows.
+Exceeding it returns `429` with `Retry-After`, the seconds until the window resets.
 
-Requests continue to be rate limited for a short period after a violation, so
-back off rather than retrying immediately. If your expected volume needs a higher
-limit, tell us during onboarding — batching up to 1,000 events per request is
-usually the better answer.
+Responses carry `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`
+headers, so you can slow down before you reach the limit. If your expected volume
+needs a higher limit, tell us during onboarding — batching up to 1,000 events per
+request is usually the better answer.
 
 ---
 
@@ -828,8 +924,11 @@ offset. `2026-03-01T10:22:00` is rejected; `2026-03-01T10:22:00Z` is accepted.
 **`product_id` "token is scoped to …"** — the `product_id` in the event doesn't
 match your token. Check you're not sending staging data with a production token.
 
-**`schema_version` "must be 1.2 when using learner, revision, voided"** — bump
-`schema_version` to `"1.2"` to use those fields.
+**`schema_version` "must be "1.2" or later when using learner, revision, voided"**
+— bump `schema_version` to `"1.2"` or later (`"1.5"` for new integrations).
+
+**`schema_version` "must be "1.5" or later when using qualifiers"** — bump
+`schema_version` to `"1.5"`.
 
 **`learner` "must include at least one of id, class_id or cohort_id"** — a
 `learner` object has to identify a person or a group.
@@ -840,6 +939,15 @@ whether the actor was a teacher, admin or system.
 **`revision` "corrections and voids are not yet supported"** — contact us to have
 corrections enabled for your integration.
 
+**`event_too_large`** — one event is over 200 KiB, usually because of `raw` or a
+long `result.response`. The rest of the batch is unaffected. Trim the event.
+
+**`401` "Invalid API key"** — the token is malformed, unknown or wrong; we don't
+say which. Check you're sending the whole `eia_<prefix>.<secret>` value.
+
+**`401` "Server keys cannot be used from a browser"** — the request carried an
+`Origin` header. Use a publishable token from the browser.
+
 **Everything returns 200 but nothing appears in reports** — check you aren't
 sending `school_id: "sch_test_000"`, which is excluded from analytics by design.
 
@@ -849,13 +957,15 @@ sending `school_id: "sch_test_000"`, which is excluded from analytics by design.
 
 | Field | Values |
 |---|---|
-| `schema_version` | `1.0`, `1.1`, `1.2` |
+| `schema_version` | `1.0`, `1.1`, `1.2`, `1.4`, `1.5` |
 | `event_kind` | `interaction`, `state_change`, `system` |
 | `actor.role`, `learner.role` | `student`, `teacher`, `admin`, `system` |
 | `actor.education_level`, `learner.education_level` | `early-childhood`, `primary`, `lower-secondary`, `upper-secondary` |
 | `activity.difficulty` | `beginner`, `intermediate`, `advanced` |
 | `client.platform` | `web`, `ios`, `android`, `desktop` |
 | `client.device_type` | `mobile`, `tablet`, `desktop` |
+| `client.os` | `chromeos`, `windows`, `macos`, `ipados`, `ios`, `android`, `linux`, `other` |
+| `qualifiers.*` | See [qualifiers](#qualifiers) |
 | `status` (response) | `accepted`, `partial`, `rejected` |
 
 `activity.type` and `activity.subject` are **not** enums — send your own values and
@@ -869,7 +979,9 @@ we map them.
 |---|---|
 | Events per request | 1,000 |
 | Payload size | 5 MB |
-| Requests per minute, per product | 1,000 |
+| Event size | 200 KiB |
+| Requests per minute, per token | 6,000 |
+| Field errors reported per event | 8 |
 | `attributes` key length | 64 characters |
 | `event_source` length | 64 characters |
 | `grade_index` | 0–20 |
@@ -882,6 +994,36 @@ we map them.
 ---
 
 ## Changelog
+
+### 1.5
+
+Additive — earlier payloads remain valid and are processed unchanged.
+
+**Added**
+
+- [`qualifiers`](#qualifiers), for products that send our standard event names.
+  Requires `schema_version` `"1.5"`.
+
+**Endpoint**
+
+- New endpoint: `{{INGEST_URL}}/v1`. Existing tokens keep working.
+- Every field error carries a stable `code`; see [Error codes](#error-codes).
+- `X-Request-Id` on every response; `request_id` on `401` and `403` bodies too.
+- A temporary storage failure returns `503` with `Retry-After` (was `500`).
+- The three invalid-token messages are unified as `Invalid API key`.
+- Events over 200 KiB are rejected individually with `event_too_large`.
+- Rate limit raised to 6,000 requests per minute per token, with `RateLimit-*`
+  headers.
+- Server and publishable tokens for new integrations.
+
+### 1.4
+
+- `client.os`. Case and common spellings are folded; other values become
+  `other`. Below `"1.4"` the field is dropped and the event kept.
+- Version requirements mean "this version or later": a `"1.4"` event may use
+  `learner`, `revision` and `voided`.
+
+There is no 1.3.
 
 ### 1.2
 
